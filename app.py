@@ -1,351 +1,124 @@
-
-def menu():
-
-    options = {
-        1 : {
-            "title" : "Add new customer details", 
-            "method": lambda : add()
-            },
-
-        2 : {
-            "title" : "Modify already existing customer details", 
-            "method": lambda : modify()
-            },
-
-        3 : {
-            "title" : "Search customer details", 
-            "method": lambda : search()
-            },
-
-        4 : {
-            "title" : "View all customer details", 
-            "method": lambda : view()
-            },
-
-        5 : {
-            "title" : "Delete customer details", 
-            "method": lambda : remove()
-            },
-
-        6 : {
-            "title" : "Exit the program", 
-            "method": lambda : exit()
-            }
-    }
-
-    print(f"\n\n{' '*25}Welcome to Hotel Database Management Software\n\n")
-
-    for num, option in options.items():
-        print(f"{num}: {option.get('title')}")
-    print()
-
-    options.get( int(input("Enter your choice(1-6): ")) ).get("method")()
-
-
-def add():
-
-    Name1 = input("\nEnter your first name: \n")
-    Name2 = input("\nEnter your last name: \n")
-    Phone_Num = input("\nEnter your phone number(without +91): \n")
-
-    print("These are the rooms that are currently available")
-    print("1-Normal (500/Day)")
-    print("2-Deluxe (1000/Day)")
-    print("3-Super Deluxe (1500/Day)")
-    print("4-Premium Deluxe (2000/Day)")
-
-    Room_Type = int(input("\nWhich type you want(1-4): \n"))
-
-    match Room_Type:
-        case 1:
-            x = 500
-            Room_Type = "Normal"
-        case 2:
-            x = 1000
-            Room_Type = "Deluxe"
-        case 3:
-            x = 1500
-            Room_Type = "Super Deluxe"
-        case 4:
-            x = 2000
-            Room_Type = "Premium"
-
-    Days = int(input("How many days you will stay: "))
-    Money = x * Days
-    Money = str(Money)
-    print("")
-
-    print("You have to pay ", (Money))
-    print("")
-
-    Payment = input("Mode of payment(Card/Cash/Online): ").capitalize()
-    if Payment == "Card":
-        print("Payment with card")
-    elif Payment == "Cash":
-        print("Payment with cash")
-    elif Payment == "Online":
-        print("Online payment")
-    print("")
-
-    with open("Management.txt", "r") as File:
-        string = File.read()
-        string = string.replace("'", '"')
-        dictionary = json.loads(string)
-
-    if len(dictionary.get("Room")) == 0:
-        Room_num = "501"
-    else:
-        listt = dictionary.get("Room")
-        tempp = len(listt) - 1
-        temppp = int(listt[tempp])
-        Room_num = 1 + temppp
-        Room_num = str(Room_num)
-
-    print("You have been assigned Room Number", Room_num)
-    print(f"name : {Name1} {Name2}")
-    print(f"phone number : +91{Phone_Num}")
-    print(f"Room type : {Room_Type}")
-    print(f"Stay (day) : {Days}")
-
-    dictionary["First_Name"].append(Name1)
-    dictionary["Last_Name"].append(Name2)
-    dictionary["Phone_num"].append(Phone_Num)
-    dictionary["Room_Type"].append(Room_Type)
-    dictionary["Days"].append(Days)
-    dictionary["Price"].append(Money)
-    dictionary["Room"].append(Room_num)
-
-    with open("Management.txt", "w", encoding="utf-8") as File:
-        File.write(str(dictionary))
-
-    print("\nYour data has been successfully added to our database.")
-
-    exit_menu()
-
-
+import streamlit as st
+from docx import Document
 import os
-import json
 
-filecheck = os.path.isfile("Management.txt")
-if not filecheck:
-    with open("Management.txt", "a", encoding="utf-8") as File:
-        temp1 = {
-            "First_Name": [],
-            "Last_Name": [],
-            "Phone_num": [],
-            "Room_Type": [],
-            "Days": [],
-            "Price": [],
-            "Room": [],
-        }
-        File.write(str(temp1))
+# Password protection
+password = st.secrets["password"]
+entered_password = st.text_input("Enter the password:", type="password")
 
+if entered_password == "":
+    entered_password = None
 
-def modify():
+if entered_password != password:
+    if entered_password is not None:
+        st.error("Incorrect password. Please try again.")
+    st.stop()
 
-    with open("Management.txt", "r") as File:
-        string = File.read()
-        string = string.replace("'", '"')
-        dictionary = json.loads(string)
+# Load the document
+doc_path = 'Template_for_word_replace.docx'
+doc = Document(doc_path)
 
-    dict_num = dictionary.get("Room")
-    dict_len = len(dict_num)
-    if dict_len == 0:
-        print("\nThere is no data in our database\n")
-        menu()
-    else:
-        Room = input("\nEnter your Room Number: ")
+# Function to replace text while keeping formatting
+def replace_text_while_keeping_formatting(cell, search_text, replace_text):
+    # First, extract all the runs in the cell's paragraphs
+    runs = []
+    for para in cell.paragraphs:
+        for run in para.runs:
+            runs.append(run)
 
-        listt = dictionary["Room"]
-        index = int(listt.index(Room))
+    # Combine the text from all runs and replace the target text
+    full_text = ''.join(run.text for run in runs)
+    new_text = full_text.replace(search_text, replace_text)
 
-        print("\n1-Change your first name")
-        print("2-Change your last name")
-        print("3-Change your phone number")
+    # Clear all the runs in the cell
+    for para in cell.paragraphs:
+        for run in para.runs:
+            run.clear()
 
-        choice = int(input("\nEnter your choice: "))
-        print()
+    # Repopulate the runs with the new text
+    current_run = runs[0] if runs else cell.paragraphs[0].add_run()
+    current_run.text = new_text
 
-        with open("Management.txt", "w", encoding="utf-8") as File:
-            
-            match choice:
-                case 1:
-                    category = "First_Name"
-                case 2:
-                    category = "Last_Name"
-                case 3:
-                    category = "Phone_num"
+# Streamlit app
+st.title("Document Modifier")
 
-            user_input = input(f"Enter New {category.replace('_', ' ')}")
-            listt1 = dictionary[category]
-            listt1[index] = user_input
-            dictionary[category] = None
-            dictionary[category] = listt1
+# Input for company name
+company_name = st.text_input("Company Name:", "DOLLAR TREE IMPORT")
 
-            File.write(str(dictionary))
+# Input for Address Line 1
+address_line1 = st.text_input("Address Line 1:", "")
 
-        print("\nYour data has been successfully updated")
-        exit_menu()
+# Input for Address Line 2
+address_line2 = st.text_input("Address Line 2:", "")
 
+# Input for Address Line 3
+address_line3 = st.text_input("Address Line 3:", "")
 
-def search():
+# Prepare address
+address = f"{address_line1}\n{address_line2}\n{address_line3}"
 
-    with open("Management.txt") as File:
-        dictionary = json.loads(File.read().replace("'", '"'))
+# Input for factor
+factor = st.number_input("Factor:", value=1.0, step=0.1)
 
-    dict_num = dictionary.get("Room")
-    dict_len = len(dict_num)
+# Button to generate modified document and final PDF
+if st.button("Generate Documents"):
+    # Load the document
+    doc = Document(doc_path)
 
-    if dict_len == 0:
-        print("\nThere is no data in our database\n")
-        menu()
-    else:
-        Room = input("\nEnter your Room Number: ")
+    # Define the replacement values
+    unit_prices = {"U1": 0.44, "U2": 0.35, "U3": 0.35, "U4": 0.40, "U5": 0.54}
+    quantity = {"Q1": 6588.0, "Q2": 6576.0, "Q3": 10020.0, "Q4": 9144.0, "Q5": 4248.0}
 
-        listt_num = dictionary.get("Room")
-        index = int(listt_num.index(Room))
+    # Calculate modified unit prices based on the factor
+    unit_prices_modified = {key: value * factor for key, value in unit_prices.items()}
 
-        listt_fname = dictionary.get("First_Name")
-        listt_lname = dictionary.get("Last_Name")
-        listt_phone = dictionary.get("Phone_num")
-        listt_type = dictionary.get("Room_Type")
-        listt_days = dictionary.get("Days")
-        listt_price = dictionary.get("Price")
+    # Replace placeholders in the document
+    for paragraph in doc.paragraphs:
+        if 'COMPANY_NAME' in paragraph.text:
+            paragraph.text = paragraph.text.replace('COMPANY_NAME', company_name)
+        if 'ADDRESS' in paragraph.text:
+            paragraph.text = paragraph.text.replace('ADDRESS', address)
+    # Initialize a flag to determine when to start summing the item totals
+    start_summing = False
+    # Initialize total_sum_rounded
+    total_sum_rounded = 0.0
+    # Iterate through the document's tables to replace placeholders
+    for table in doc.tables:
+        total_sum = 0.0
+        for row in table.rows:
+            for cell in row.cells:
+                # Replace unit prices
+                for key, value in unit_prices_modified.items():
+                    value_rounded = round(value, 2)
+                    replace_text_while_keeping_formatting(cell, key, f"\n\t{value_rounded}")
+                # Replace quantities and calculate total item
+                for key, value in quantity.items():
+                    if key.startswith('Q'):
+                        idx = int(key[1:])
+                        total_item = value * unit_prices_modified[f'U{idx}']
+                        if key=='Q1':
+                            start_summing=True
+                        if start_summing and key.startswith('Q'):
+                            total_sum+=total_item
+                        cell_idx = row.cells[-1]
+                        replace_text_while_keeping_formatting(cell_idx, f'T{idx}', "{:.2f}".format(total_item))
+    total=total_sum/5
+    # Round off the total sum to two decimal places
+    total_sum_rounded = round(total, 2)
 
-        print(f"\nFirst Name: {listt_fname[index]}")
-        print(f"Last Name: {listt_lname[index]}")
-        print(f"Phone number: {listt_phone[index]}")
-        print(f"Room Type: {listt_type[index]}")
-        print(f"Days staying: {listt_days[index]}")
-        print(f"Money paid: {listt_price[index]}")
-        print(f"Room Number: {listt_num[index]}")
+    # Replace placeholder "T6" with the calculated total sum
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                if 'T6' in cell.text:
+                    replace_text_while_keeping_formatting(cell, 'T6', "{:.2f}".format(total_sum_rounded))
 
-        exit_menu()
+    # Save the modified document
+    doc.save('modified_document.docx')
 
+    # Convert the modified document to PDF
+    pdf_path = os.path.abspath('final.pdf')
+    doc_path_abs = os.path.abspath('modified_document.docx')
+    os.system(f'libreoffice --headless --convert-to pdf {doc_path_abs} --outdir {os.path.dirname(pdf_path)}')
 
-def remove():
-    with open("Management.txt") as File:
-        dictionary = json.loads(File.read().replace("'", '"'))
-
-    dict_num = dictionary.get("Room")
-    dict_len = len(dict_num)
-    if dict_len == 0:
-        print("\nThere is no data in our database\n")
-        menu()
-    else:
-        Room = input("\nEnter your Room Number: ")
-
-        listt = dictionary["Room"]
-        index = int(listt.index(Room))
-
-        listt_fname = dictionary.get("First_Name")
-        listt_lname = dictionary.get("Last_Name")
-        listt_phone = dictionary.get("Phone_num")
-        listt_type = dictionary.get("Room_Type")
-        listt_days = dictionary.get("Days")
-        listt_price = dictionary.get("Price")
-        listt_num = dictionary.get("Room")
-
-        del listt_fname[index]
-        del listt_lname[index]
-        del listt_phone[index]
-        del listt_type[index]
-        del listt_days[index]
-        del listt_price[index]
-        del listt_num[index]
-
-        dictionary["First_Name"] = None
-        dictionary["First_Name"] = listt_fname
-
-        dictionary["Last_Name"] = None
-        dictionary["Last_Name"] = listt_lname
-
-        dictionary["Phone_num"] = None
-        dictionary["Phone_num"] = listt_phone
-
-        dictionary["Room_Type"] = None
-        dictionary["Room_Type"] = listt_type
-
-        dictionary["Days"] = None
-        dictionary["Days"] = listt_days
-
-        dictionary["Price"] = None
-        dictionary["Price"] = listt_price
-
-        dictionary["Room"] = None
-        dictionary["Room"] = listt_num
-
-        with open("Management.txt", "w", encoding="utf-8") as file1:
-            file1.write(str(dictionary))
-
-        print("Details has been removed successfully")
-
-        exit_menu()
-
-
-def view():
-
-    with open("Management.txt") as File:
-        dictionary = json.loads(File.read().replace("'", '"'))
-
-    dict_num = dictionary.get("Room")
-    dict_len = len(dict_num)
-    if dict_len == 0:
-        print("\nThere is no data in our database\n")
-        menu()
-
-    else:
-        listt = dictionary["Room"]
-        a = len(listt)
-
-        index = 0
-        while index != a:
-            listt_fname = dictionary.get("First_Name")
-            listt_lname = dictionary.get("Last_Name")
-            listt_phone = dictionary.get("Phone_num")
-            listt_type = dictionary.get("Room_Type")
-            listt_days = dictionary.get("Days")
-            listt_price = dictionary.get("Price")
-            listt_num = dictionary.get("Room")
-
-            print("")
-            print("First Name:", listt_fname[index])
-            print("Last Name:", listt_lname[index])
-            print("Phone number:", listt_phone[index])
-            print("Room Type:", listt_type[index])
-            print("Days staying:", listt_days[index])
-            print("Money paid:", listt_price[index])
-            print("Room Number:", listt_num[index])
-            print("")
-
-            index = index + 1
-
-        exit_menu()
-
-
-def exit():
-    print("")
-    print("                             Thanks for visiting")
-    print("                                 Goodbye")
-
-
-def exit_menu():
-    print("")
-    print("Do you want to exit the program or return to main menu")
-    print("1-Main Menu")
-    print("2-Exit")
-    print("")
-
-    user_input = int(input("Enter your choice: "))
-    if user_input == 2:
-        exit()
-    elif user_input == 1:
-        menu()
-
-
-try:
-    menu()
-except KeyboardInterrupt as exit:
-    print("\nexiting...!")
-
-# menu()
+    st.success("Documents generated successfully!")
